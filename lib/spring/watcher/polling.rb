@@ -7,10 +7,18 @@ module Spring
         super
         @mtime  = 0
         @poller = nil
+        @env = Env.new
       end
 
       def check_stale
-        synchronize { mark_stale if mtime < compute_mtime }
+        synchronize {
+          current = compute_mtime
+
+          if mtime < current
+            @env.log "[polling watcher] mtime: #{mtime}, new mtime: #{current}"
+            mark_stale
+          end
+        }
       end
 
       def add(*)
@@ -46,7 +54,8 @@ module Spring
 
       def compute_mtime
         expanded_files.map { |f| File.mtime(f).to_f }.max || 0
-      rescue Errno::ENOENT
+      rescue Errno::ENOENT => e
+        @env.log "[polling watcher] ENOENT: #{e.inspect}"
         # if a file does no longer exist, the watcher is always stale.
         Float::MAX
       end
