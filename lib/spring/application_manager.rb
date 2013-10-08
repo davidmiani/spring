@@ -89,7 +89,13 @@ module Spring
       @child, child_socket = UNIXSocket.pair
       @pid = fork {
         (ObjectSpace.each_object(IO).to_a - [STDOUT, STDERR, STDIN, child_socket])
-          .reject(&:closed?)
+        .reject { |io| 
+            begin
+                io.closed? 
+            rescue IOError 
+                true 
+            end
+        }
           .each(&:close)
 
         ENV['RAILS_ENV'] = ENV['RACK_ENV'] = app_env
